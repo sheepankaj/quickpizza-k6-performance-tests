@@ -1,0 +1,12 @@
+node_modules/
+downloads/
+reports/
+screenshots/
+test-results/
+screenshots/
+playwright-report/
+.vscode/
+.env
+.token
+.claude
+*.log

@@ -1,0 +1,44 @@
+{
+	"name": "Quick-Pizza-Grafana-qa-k6",
+	"version": "1.0.0",
+	"description": "Scalable K6 Browser Load Testing framework with locally and pipeline generate HTML report",
+	"directories": {
+		"test": "tests"
+	},
+	"scripts": {
+		"prettier": "prettier --write \"**/*.{js,json}\" && git update-index -g",
+		"lint": "eslint pages testconfig tests utils",
+		"prepare": "husky",
+		"test": "npm run test:headed",
+		"test:headed": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-generate-local-report.ps1 -Headless false",
+		"test:headless": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-generate-local-report.ps1 -Headless true",
+		"test:spike": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-generate-local-report.ps1 -Headless true -TestType spike",
+		"test:load": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-generate-local-report.ps1 -Headless true -TestType load",
+		"test:stress": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-generate-local-report.ps1 -Headless true -TestType stress",
+		"test:runpipeline": "powershell -ExecutionPolicy Bypass -File ./scripts/run-test-pipeline-generate-htmlreport.ps1"
+	},
+	"keywords": [],
+	"author": "QA Team",
+	"license": "ISC",
+	"type": "commonjs",
+	"dependencies": {
+		"@playwright/test": "^1.61.0",
+		"dotenv": "^17.4.2"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"eslint": "^10.0.0",
+		"globals": "^17.3.0",
+		"husky": "^9.1.7",
+		"k6-html-reporter": "^1.0.5",
+		"prettier": "^3.9.5"
+	},
+	"prettier": {
+		"trailingComma": "es5",
+		"tabWidth": 2,
+		"useTabs": true,
+		"printWidth": 120,
+		"semi": true,
+		"singleQuote": true
+	}
+}

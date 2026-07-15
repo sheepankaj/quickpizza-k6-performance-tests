@@ -1,0 +1,127 @@
+parameters:
+  - name: environment
+    displayName: Target Environment
+    type: string
+    default: 'grafana'
+    values:
+      - 'grafana'
+      - 'qa'
+
+  - name: testMode
+    displayName: Test Mode
+    type: string
+    default: 'smoke'
+    values:
+      - 'smoke'
+      - 'spike'
+      - 'load'
+      - 'stress'
+  - name: testsToRun
+    displayName: Select which test to run
+    type: string
+    default: 'all'
+    values:
+      - 'all'
+      - 'home'
+
+name: $(Date:yyyyMMdd)$(Rev:.r)-${{ parameters.environment }}-${{ parameters.testMode }}
+
+trigger: none
+
+jobs:
+  - job: K6PerformanceTests
+    pool:
+      vmImage: 'ubuntu-latest'
+    variables:
+      - group: qa-performancetest
+    timeoutInMinutes: 300
+
+    steps:
+      - checkout: self
+
+      - script: npm ci --ignore-scripts
+        displayName: 'Install NPM Dependencies'
+
+      - script: npx playwright install chromium --with-deps
+        displayName: 'Install Playwright Chromium browser'
+        retryCountOnTaskFailure: 10
+
+    # Run Playwright test to generate bearer token
+      - script: npx playwright test setup/getTokenViaLogin.spec.js --retries=2
+        displayName: 'Get Auth Token via Playwright'
+        workingDirectory: $(System.DefaultWorkingDirectory)
+        env:
+          testEnv: ${{ parameters.environment }}
+          loginId: $(loginId)
+          loginPassword: $(loginPassword)
+          CI: 'true'
+
+    # Install k6 binary (Linux agent)
+      - script: |
+          echo "Downloading k6 v1.6.1 binary..."
+          curl -L https://github.com/grafana/k6/releases/download/v1.6.1/k6-v1.6.1-linux-amd64.tar.gz -o k6.tar.gz
+          mkdir -p $HOME/k6bin
+          tar -xzf k6.tar.gz -C $HOME/k6bin --strip-components=1
+          echo "##vso[task.prependpath]$HOME/k6bin"
+        displayName: 'Install k6 binary (v1.6.1)'
+
+    # Verify k6 works
+      - script: |
+          which k6
+          k6 version
+        displayName: 'Verify k6 installation'
+
+    # Create output folders (gitignored, so they won't exist on a clean CI agent)
+      - script: mkdir -p reports screenshots
+        displayName: 'Create reports and screenshots directories'
+
+    # Run K6 Hybrid Performance Tests
+      - script: |
+          if [ "$(Build.SourceBranchName)" == "master" ]; then
+            export qa_teams_webhook=$(qa_teams_webhook)
+          fi
+
+          export testEnv=${{ parameters.environment }}
+          export HEADLESS=true
+          export CI=true
+          export loginId=$(loginId)
+          export loginPassword=$(loginPassword)
+
+          # Use Playwright's own path resolution — works regardless of VMSS agent user or home directory
+          CHROMIUM_PATH=$(node -e "const {chromium} = require('playwright-core'); console.log(chromium.executablePath())" 2>/dev/null)
+          if [ -z "$CHROMIUM_PATH" ] || [ ! -f "$CHROMIUM_PATH" ]; then
+            echo "WARNING: Could not resolve Playwright Chromium path. Browser tests may not run."
+          else
+            echo "Chromium found at: $CHROMIUM_PATH"
+            export K6_BROWSER_EXECUTABLE_PATH=$CHROMIUM_PATH
+          fi
+
+          # Run K6 tests in hybrid mode
+          pwsh -NoLogo -NoProfile -File "$(System.DefaultWorkingDirectory)/scripts/run-test-pipeline-generate-htmlreport.ps1" -TestType "${{ parameters.testMode }}" -Environment "${{ parameters.environment }}" -TestsToRun "${{ parameters.testsToRun }}"
+        displayName: 'Running QuickPizza K6 Hybrid Performance Tests'
+        workingDirectory: $(System.DefaultWorkingDirectory)
+        env:
+          HEADLESS: 'true'
+          CI: 'true'
+          K6_BROWSER_ARGS: '--no-sandbox,--disable-dev-shm-usage'
+          AZURE_SERVER_URL: $(System.CollectionUri)
+          AZURE_PROJECT: $(System.TeamProject)
+          AZURE_RUN_ID: $(Build.BuildId)
+
+    # Publish HTML Report
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish K6 HTML Report'
+        inputs:
+          targetPath: 'reports'
+          artifact: 'K6-Report-$(System.JobAttempt)'
+        continueOnError: true
+        condition: succeededOrFailed()
+
+    # Publish failure screenshots (only if any were captured)
+      - task: PublishPipelineArtifact@1
+        displayName: 'Publish Failure Screenshots'
+        inputs:
+          targetPath: 'screenshots'
+          artifact: 'K6-BrowserTestsScreenshots-$(System.JobAttempt)'
+        continueOnError: true
+        condition: succeededOrFailed()
