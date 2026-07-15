@@ -1,3 +1,4 @@
+[smoke_home_grafana-summary.html](https://github.com/user-attachments/files/30055767/smoke_home_grafana-summary.html)
 # QuickPizza K6 Performance Testing Framework
 
 A scalable **hybrid load testing framework** built with [K6](https://k6.io/) against the [QuickPizza](https://quickpizza.grafana.com/) demo app (Grafana's k6 example application). It combines browser-based (Core Web Vitals) and API performance testing, supports multiple load profiles, and integrates with Azure DevOps CI/CD pipelines with automated HTML report generation.
@@ -265,3 +266,10 @@ All code must be formatted with Prettier before committing:
 npm run prettier
 npm run lint
 ```
+### Report Example Screenshots
+<img width="719" height="897" alt="image" src="https://github.com/user-attachments/assets/9719c6d0-07bd-4c2c-9075-82f2eca7c1de" />
+<img width="1306" height="830" alt="image" src="https://github.com/user-attachments/assets/7fb040bf-c556-456c-8fb9-0288b35ed161" />
+<img width="716" height="764" alt="image" src="https://github.com/user-attachments/assets/329534f9-29b6-48aa-9e15-b7dbc641211f" />
+
+
+
